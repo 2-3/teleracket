@@ -8,7 +8,7 @@
        (λ (update)
            (let* ((message (hash-ref update 'message))
                   (user  (hash-ref message 'from))
-                  (message-text (hash-ref message 'text))
+                  (message-text (if (hash-has-key? message 'text) (hash-ref message 'text) ""))
                   (user-username (hash-ref user 'username)))
              (printf "<~a> ~a ~%" user-username  message-text)
              (cond
