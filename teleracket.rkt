@@ -9,7 +9,7 @@
  api-forward-message)
 
 ; see https://core.telegram.org/bots/api for information on how to get a token
-(define bot-token "289593631:AAE58As13IneG2Lz49cPopbML1g2zk23MFE")
+(define bot-token "")
 (define api-endpoint-host "api.telegram.org")
 (define api-endpoint-uri (string-append "/bot" bot-token "/"))
 
