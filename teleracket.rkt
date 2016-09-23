@@ -4,12 +4,12 @@
 
 (provide
  api-get-updates
+ api-get-botinfo
  api-send-message
- api-answer-message
  api-forward-message)
 
 ; see https://core.telegram.org/bots/api for information on how to get a token
-(define bot-token "")
+(define bot-token "289593631:AAE58As13IneG2Lz49cPopbML1g2zk23MFE")
 (define api-endpoint-host "api.telegram.org")
 (define api-endpoint-uri (string-append "/bot" bot-token "/"))
 
@@ -41,6 +41,9 @@
                          (hash-ref (last updates) 'update_id)))))
     (values updates (make-get-updates-with-offset next-offset))))
 
+(define (api-get-botinfo)
+  (hash-ref (api-get-request "getMe") 'result))
+
 (define (make-get-updates-with-offset offset)
   (λ ((limit 100) (timeout 0)) (api-get-updates offset limit timeout)))
 
@@ -48,9 +51,6 @@
   (let* ((message-hash (hash 'chat_id chat-id 'text text))
          (response (api-post-request "sendMessage" message-hash)))
     response))
-
-(define (api-answer-message message text)
-  (api-send-message (hash-ref (hash-ref message 'chat) 'id) text))
 
 (define (api-forward-message to-chat-id from-chat-id message-id)
   (let* ((message-hash (hash 'chat_id to-chat-id 'from_chat_id from-chat-id 'message_id message-id))
