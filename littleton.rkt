@@ -1,10 +1,22 @@
 #lang racket
-(require racket/match
-         "teleracket.rkt")
+(require "teleracket.rkt")
 
 (struct ~matcher (id
-                  match-proc
-                  handle-proc))
+                  match
+                  handle)
+        #:guard (lambda (id mt hn tn)
+                  (values
+                    id
+                    (cond
+                      [(string? mt) (lambda (m) (string=? (~message-text m) mt))]
+                      [(regexp? mt) (lambda (m) (regexp-match? mt (~message-text m)))]
+                      [(procedure? mt) mt]
+                      [else (error tn "bad matcher value: ~a" mt)])
+                    (cond
+                      [(string? hn) (lambda (m) (api-send-message (~message-chat-id m) hn))]
+                      [(and (regexp? mt) (procedure? hn) (arity=? hn 2)) (lambda (m) (hn m (regexp-match* mt)))]
+                      [(procedure? hn) hn]
+                      [else (error tn "bad matcher value: ~a" mt)]))))
 
 (struct ~message (id
                   chat-id 
@@ -16,8 +28,8 @@
 
 (define matcher-list
   (list (~matcher "coffee"
-            (lambda (m) (string=? (~message-text m) "coffee"))
-            (lambda (m) (api-send-message (~message-chat-id m) "☕️")))))
+                  "coffee"
+                  "☕️")))
 
 (define (run-bot proc matchers)
   (define-values (updates get-updates-proc) (proc))
@@ -28,8 +40,8 @@
                   (m (~message (hash-ref message 'message_id)
                                (hash-ref (hash-ref message 'chat) 'id)
                                (hash-ref user 'id)
-                               (hash-ref user 'username)
-                               (if (hash-has-key? message 'text) (sanitize-command (hash-ref message 'text)) ""))))
+                               (hash-ref user 'username '())
+                               (sanitize-command (hash-ref message 'text "/")))))
              (printf "<~a> (~a) ~a ~%" (~message-from-name m) (~message-chat-id m) (~message-text m))
              (handle-message m matchers))
          ) updates)
@@ -45,7 +57,7 @@
 (define (handle-message m matchers)
   (map
    (lambda (matcher)
-     (if ((~matcher-match-proc matcher) m) ((~matcher-handle-proc matcher) m) '()))
+     (if ((~matcher-match matcher) m) ((~matcher-handle matcher) m) '()))
    matchers))
 
 
