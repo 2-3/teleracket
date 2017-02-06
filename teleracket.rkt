@@ -24,10 +24,10 @@
      #:ssl? #t
      #:data (make-request-options options)
      #:headers (list "Content-Type: application/json")))
-  (define response read-json json-encoded-response)
+  (define response (read-json json-encoded-response))
   (if (hash-ref response 'ok)
-    ('ok  . (hash-ref response 'result)
-     'err . ((hash-ref response 'description) (hash-ref response 'error_code)))))
+    (cons 'ok  (hash-ref response 'result))
+    (cons 'err ((hash-ref response 'description) (hash-ref response 'error_code)))))
 
 (define (api-get-request action (options '()))
   (api-request "GET" action options))
@@ -40,17 +40,17 @@
                         'limit limit
                         'timeout timeout
                         'allowed-updates allowed-updates))
-         (response (api-get-request "getUpdates" options))))
-  (values response
+         (response (api-get-request "getUpdates" options)))
+    (values response
           (make-get-updates-with-offset
             (case (car response)))
-              ('ok  (+ 1 (hash-ref (last updates) 'update_id)))
-              ('err offset)))
+              ('ok  (+ 1 (hash-ref (last response) 'update_id)))
+              ('err offset))))
 
 (define (api-get-botinfo)
   (api-get-request "getMe"))
 
-(define (make-get-updates-with-offset offset (default-limit 100) (default-timeout 0) (default-allowed-updates))
+(define (make-get-updates-with-offset offset (default-limit 100) (default-timeout 0) (default-allowed-updates '()))
   (λ ((limit default-limit) (timeout default-timeout) (allowed-updates default-allowed-updates))
      (api-get-updates offset limit timeout allowed-updates)))
 
