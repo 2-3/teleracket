@@ -41,11 +41,14 @@
                         'timeout timeout
                         'allowed-updates allowed-updates))
          (response (api-get-request "getUpdates" options)))
-    (values response
-          (make-get-updates-with-offset
-            (case (car response)))
-              ('ok  (+ 1 (hash-ref (last response) 'update_id)))
-              ('err offset))))
+    (values
+      (car response)
+      (cdr response)
+      (make-get-updates-with-offset
+        (cond
+          ((empty? (cdr response)) offset)
+          ((eq? 'ok (car response))  (+ 1 (hash-ref (last (cdr response)) 'update_id)))
+          ((eq? 'err (car response)) offset))))))
 
 (define (api-get-botinfo)
   (api-get-request "getMe"))

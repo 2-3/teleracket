@@ -1,21 +1,47 @@
 #lang racket
 (require "teleracket.rkt")
 
-(define (run-bot proc)
-  (define-values (updates get-updates-proc) (proc))
-    (begin
-      (map
-       (λ (update)
-           (let* ((message (hash-ref update 'message))
-                  (user  (hash-ref message 'from))
-                  (message-text (if (hash-has-key? message 'text) (hash-ref message 'text) ""))
-                  (user-username (hash-ref user 'username)))
-             (printf "<~a> ~a ~%" user-username  message-text)
-             (cond
-               ((and (> (string-length message-text) 5) (string=? (substring message-text 0 5) "echo "))
-                (api-answer-message message (substring message-text 5)))))
-         ) updates)
-      (sleep 2)
-      (run-bot get-updates-proc)))
+(struct ~matcher (id
+                  match-proc
+                  handle-proc))
 
-(run-bot (λ () (api-get-updates)))
+(define-syntax <-
+  (syntax-rules ()
+    [(<- hs a)         (hash-ref hs a)]
+    [(<- hs a b)       (hash-ref (hash-ref hs a) b)]
+    [(<- hs a b c ...) (<- (hash-ref (hash-ref hs a) b) c ...)]))
+
+(define bot-name (<- (cdr (api-get-botinfo)) 'username))
+
+(define (run-bot proc matchers)
+  (define-values (status result get-updates-proc) (proc))
+  (case status
+    ('err
+     (begin
+       (printf "ERROR: [~a] ~a" (second result) (first result))
+       (sleep 10)))
+    ('ok 
+     (map (λ (update)
+             (let
+              ((m (<- update 'message)))
+               (printf "<~a> (~a) ~a ~%" (<- m 'from 'username) (<- m 'chat 'id) (<- m 'text))
+               (handle-message (hash-set m 'text (sanitize-command (<- m 'text))) matchers)))
+          result)))
+  (run-bot get-updates-proc matchers))
+
+(define (sanitize-command t)
+  (cond 
+    [(regexp-match? (regexp (string-append "/(.*?)@" bot-name)) t) (cadr (regexp-match #rx"/(.*?)@" t))]
+    [(char=? #\/ (string-ref t 0)) (substring t 1)]
+    [else t]))
+
+(define (handle-message m matchers)
+  (map
+   (λ (matcher)
+     (if ((~matcher-match-proc matcher) m) ((~matcher-handle-proc matcher) m) '()))
+   matchers))
+
+(run-bot (λ () (api-get-updates)) (list
+                                      (~matcher "coffee"
+                                        (λ (m) (string=? (<- m 'text) "coffee"))
+                                        (λ (m) (api-send-message (<- m 'chat 'id) "☕️")))))
