@@ -38,7 +38,7 @@
 (define (handle-message m matchers)
   (map
    (λ (matcher)
-     (if ((~matcher-match-proc matcher) m) ((~matcher-handle-proc matcher) m) '()))
+     (when ((~matcher-match-proc matcher) m) ((~matcher-handle-proc matcher) m)))
    matchers))
 
 (run-bot (λ () (api-get-updates)) (list
